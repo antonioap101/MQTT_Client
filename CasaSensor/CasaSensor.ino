@@ -13,19 +13,20 @@ void setup() {
   pinMode(3, OUTPUT);
   pinMode(4, OUTPUT);
   pinMode(6, OUTPUT);
+  pinMode(1,INPUT);
 }
 
 void loop() {
   delay(2000);
   readTemperatureAndHumidity();
   readGasSensor();
-
+  readFlameSensor();
 }
 
 void readTemperatureAndHumidity() {
   float humidity = dht.readHumidity();
   float temperature = dht.readTemperature();
-
+  Serial.println("Hum: " + String(humidity) + "Temp: " + String(temperature));
   if(isnan(humidity) || isnan(temperature)){
     Serial.println("ERROR EN EL SENSOR");
     return;
@@ -59,11 +60,20 @@ void readTemperatureAndHumidity() {
 void readGasSensor(){
   valGas=analogRead(0);//Read Gas value from analog 0
   Serial.print("Lectura del gas: ");
-  Serial.println(valGas,DEC);//Print the value to serial port
-  if(valGas > 160) {activateBuzzer();}
-  if(digitalRead(6)==HIGH && valGas<=160){deactivateBuzzer();}
+  Serial.print(valGas,DEC);//Print the value to serial port
+  Serial.println("ppm");
+  if(valGas >= 160) {activateBuzzer();}
+  if(digitalRead(6)==HIGH && valGas<180 && valFlame<400){deactivateBuzzer();}
 }
 
+void readFlameSensor(){
+  valFlame=analogRead(1);// read the analog value of the sensor 
+  Serial.print("Longitud de ondas llamas: ");
+  Serial.print(valFlame);// output and display the analog value
+  Serial.println("nm");
+  if(valFlame >= 140) {activateBuzzer();}
+  if(digitalRead(6)==HIGH && valFlame<400 && valGas<180){deactivateBuzzer();}
+}
 void activateBuzzer(){
   digitalWrite(6,HIGH);
 }

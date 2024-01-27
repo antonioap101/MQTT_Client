@@ -19,7 +19,7 @@
 #include <Arduino_PMIC.h>
 #include "LoRa-config.h"
 #include "message.h"
-#include "PIR_sensor.h"
+#include "home_sensors.h"
 
 
 #define TX_LAPSE_MS          uint32_t(5000)
@@ -30,7 +30,6 @@
 #define SEND_RANDOM_MSG      false
 
 
-
 void setup() { 
   initializeSerial();                            // Inicializa el serial  
   initializePMIC();                              // Inicializa el módulo de la batería PMIC 
@@ -38,7 +37,7 @@ void setup() {
   configureLoRa();                               // Configuración extra de LoRa
   setupLoRaCallbacks();                          // Configura las funciones de callback LoRa
   startLoRaReception();                          // Activa la recepción de mensajes de Lora
-  setupPIRSensor();
+  setupHomeSensors();
   printNodeConfig("INITIAL THIS", thisNodeConf); // Muestra la configuración inicial del Nodo
   Serial.println();
 }
@@ -54,6 +53,7 @@ void loop() {
   uint32_t currentTime = millis();                    // Tiempo actual
   uint32_t RESET_INTERVAL = txInterval_ms * RESET_MULTIPLIER;    // Calcular RESET_INTERVAL en tiempo de ejecución
 
+  
   if (shouldTransmit(currentTime, lastSendTime_ms, txInterval_ms)){
     Serial.print("Starting transmission with ");
     printNodeConfig("THIS", thisNodeConf); //printCurrentLoRaConfig();
@@ -62,7 +62,7 @@ void loop() {
   
   if (transmissionCompleted()) 
     TxTime_ms = processTransmissionCompletion(txInterval_ms, lastSendTime_ms, tx_begin_ms);
-
+  
 }
 
 
@@ -94,21 +94,13 @@ void performTransmission(uint16_t& msgCount, uint32_t& txBegin, byte messageType
             Serial.println("This is master Node, should not send NACK messages!");
             break;
         } case CFG_MESSAGE: { // CFG (Configuración)        
-            Message configMessage(msgCount, remoteNodeConf);
-            configMessage.print("[CFG] SENT");
-            configMessage.send();
+            Message configMessage(msgCount, remoteNodeConf);            
             break;
-        } case RND_MESSAGE: { // OTHER (Mensaje aleatorio)
-            int pirSensorValue = readPIRSensor();
-
-            // Crear un mensaje personalizado con el valor del sensor PIR en el payload
-            uint8_t customPayload[1] = {pirSensorValue};
-
-            Message dataMessage(msgCount, customPayload, 1);
+        } case RND_MESSAGE: { // OTHER (Mensaje aleatorio)          
+            uint8_t customPayload[] = {readTemperature(), readHumidity(), readGasSensor(), readFlameSensor()};            // Crear un array con los resultados
+            Message dataMessage(msgCount, customPayload, 4, destination);
             dataMessage.print("[RND] SENT");
-            dataMessage.send();
-            
-            //Serial.println("This is master Node, should not send RND messages!");
+            dataMessage.send();                        
             break;
         } default:
             Serial.println("ERROR => Empty Message Queue.");

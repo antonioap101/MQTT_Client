@@ -39,8 +39,8 @@ const uint8_t MAX_TX_POWER = 20;
 
 // =============================== VARIABLES ===============================
 // NOTA: Ajustar estas variables 
-const uint8_t localAddress = 0x13;           // Dirección de este dispositivo
-const uint8_t destination = 0x14;            // Dirección de destino, 0xFF es la dirección de broadcast
+const uint8_t localAddress = 0x30;           // Dirección de este dispositivo
+const uint8_t destination = 0x40;            // Dirección de destino, 0xFF es la dirección de broadcast
 
 volatile bool txDoneFlag = true;             // Flag para indicar cuando ha finalizado una transmisión
 volatile bool transmitting = false;          // Flag para indicar la transmisión de un mensaje de datos

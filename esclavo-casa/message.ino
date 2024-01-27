@@ -8,26 +8,29 @@ Message::Message() {
   this->payloadLength = 0;
 }
 
-Message::Message(uint16_t messageId, uint8_t randomPayloadLength){
-    this->messageId = messageId;    
-    prepareRandomPayload(this->payload, randomPayloadLength); // Llamar a prepareRandomPayload para generar el payload
-    this->payloadLength = randomPayloadLength; // Establecer la longitud del payload
+Message::Message(uint16_t messageId, uint8_t inputPayloadLength, uint8_t destination) {
+    this->messageId = messageId;
+    this->recipient = destination;
+    prepareRandomPayload(this->payload, inputPayloadLength);
+    this->payloadLength = inputPayloadLength;
 }
 
-Message::Message(uint16_t messageId, const LoRaConfig_t& config) {
+Message::Message(uint16_t messageId, const LoRaConfig_t& config, uint8_t destination) {
     this->messageId = messageId;
+    this->recipient = destination;
     this->payloadLength = prepareConfigPayload(config);
 }
 
-Message::Message(uint16_t messageId, const uint8_t* inputPayload, uint8_t inputPayloadLength) {
+Message::Message(uint16_t messageId, const uint8_t* inputPayload, uint8_t inputPayloadLength, uint8_t destination) {
     this->messageId = messageId;
+    this->recipient = destination;
     this->payloadLength = inputPayloadLength;
     memcpy(this->payload, inputPayload, inputPayloadLength * sizeof(uint8_t));
 }
 
-
-Message::Message(uint16_t messageId, bool isAck) {
+Message::Message(uint16_t messageId, bool isAck, uint8_t destination) {
     this->messageId = messageId;
+    this->recipient = destination;
     if (isAck) this->payloadLength = prepareACKPayload();
     else this->payloadLength = prepareNACKPayload();
 }
@@ -100,10 +103,6 @@ bool Message::read(){
   return true;
 }
 
-
-
-
-
 void Message::send() {
   while(!LoRa.beginPacket()) delay(10);           // Comenzamos el empaquetado del mensaje                                
   
@@ -174,6 +173,11 @@ const uint8_t* Message::getPayload() const {
 // Getter para obtener la longitud del payload
 uint8_t Message::getPayloadLength() const {
     return this->payloadLength;
+}
+
+// Agrega este método al final de la implementación de la clase
+uint8_t Message::getSender() const {
+    return this->sender;
 }
 
 void Message::printBinaryPayload(uint8_t * payload, uint8_t payloadLength){

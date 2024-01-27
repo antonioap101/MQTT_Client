@@ -10,12 +10,12 @@
 class Message {
 public:
 
-    Message();                                                    // Constructor por defecto
-    Message(uint16_t messageId, uint8_t inputPayloadLength);      // Para construir mensajes con payload random
-    Message(uint16_t messageId, const LoRaConfig_t& config);     // Para construir un mensaje de configuración
-    Message(uint16_t messageId, const uint8_t* inputPayload, 
-            uint8_t inputPayloadLength);                         // Para construir un mensajes con payload personalizado
-    Message(uint16_t messageId, bool isAck);                     // Para construir mensaje de ACK o NACK
+    Message();                                                                              // Constructor por defecto
+    Message(uint16_t messageId, uint8_t inputPayloadLength, uint8_t destination = 0xFF);    // Constructor para mensajes con payload aleatorio
+    Message(uint16_t messageId, const LoRaConfig_t& config, uint8_t destination = 0xFF);    // Constructor para mensaje de configuración
+    Message(uint16_t messageId, const uint8_t* inputPayload, uint8_t inputPayloadLength,
+             uint8_t destination = 0xFF);                                                   // Constructor para mensajes con payload personalizado
+    Message(uint16_t messageId, bool isAck, uint8_t destination = 0xFF);                    // Constructor para mensaje de ACK o NACK
     
     bool read();
     void send();
@@ -24,10 +24,11 @@ public:
     uint8_t getMessageType();
     const uint8_t* getPayload() const;
     uint8_t getPayloadLength() const;
+    uint8_t getSender() const;
     
 
 private:
-    uint8_t recipient = destination;
+    uint8_t recipient;
     uint8_t sender = localAddress;
     uint16_t messageId;
     uint8_t payload[50];
