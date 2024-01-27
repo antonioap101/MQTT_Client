@@ -20,6 +20,7 @@
 #include "LoRa-config.h"
 #include "message.h"
 #include "global_sensors.h"
+#include "messageQueue.h"
 
 
 #define TX_LAPSE_MS          uint32_t(5000)
@@ -44,17 +45,17 @@ void setup() {
 
 
 void loop() {
-  static uint32_t lastServerSendTime_ms = 0; // Tiempo de la última ejecución de sendHomeDataToServer()  
-  const uint32_t serverSendInterval = SERVER_SEND_INTERVAL; // Intervalo de ejecución deseado en milisegundos (medio segundo)
+  static uint32_t lastServerSendTime_ms = 0;                      // Tiempo de la última ejecución de sendHomeDataToServer()  
+  const uint32_t serverSendInterval = SERVER_SEND_INTERVAL;       // Intervalo de ejecución deseado en milisegundos (medio segundo)
 
-  static uint32_t lastSendTime_ms = 0;                // Instante de tiempo en que se comenzó la transmisión previa a la actual
-  static uint16_t msgCount = 0;                       // Conteo de mensajes enviados
-  static uint32_t txInterval_ms = TX_LAPSE_MS;        // Intervalo de tiempo para enviar mensajes 
-  static uint32_t tx_begin_ms = 0;                    // Instante de tiempo en que comienza la transmisión actual
-  static uint32_t TxTime_ms;                          // Tiempo que tardó en completarse la transmisión actual (tiempo que se pretende minimizar)
-  static uint32_t lastAdjustmentTime = 0;                 // Tiempo del último ajuste realizado
-  uint32_t currentTime = millis();                    // Tiempo actual
-  uint32_t RESET_INTERVAL = txInterval_ms * RESET_MULTIPLIER;    // Calcular RESET_INTERVAL en tiempo de ejecución
+  static uint32_t lastSendTime_ms = 0;                            // Instante de tiempo en que se comenzó la transmisión previa a la actual
+  static uint16_t msgCount = 0;                                   // Conteo de mensajes enviados
+  static uint32_t txInterval_ms = TX_LAPSE_MS;                    // Intervalo de tiempo para enviar mensajes 
+  static uint32_t tx_begin_ms = 0;                                // Instante de tiempo en que comienza la transmisión actual
+  static uint32_t TxTime_ms;                                      // Tiempo que tardó en completarse la transmisión actual (tiempo que se pretende minimizar)
+  static uint32_t lastAdjustmentTime = 0;                         // Tiempo del último ajuste realizado
+  uint32_t currentTime = millis();                                // Tiempo actual
+  uint32_t RESET_INTERVAL = txInterval_ms * RESET_MULTIPLIER;     // Calcular RESET_INTERVAL en tiempo de ejecución
 
     // Verificar si ha pasado el intervalo deseado desde la última ejecución
   if (shouldSendDataToServer(currentTime, lastServerSendTime_ms, serverSendInterval)) {
@@ -67,9 +68,8 @@ void loop() {
 
   /*
   if (shouldTransmit(currentTime, lastSendTime_ms, txInterval_ms)){
-    Serial.print("Starting transmission with ");
-    printNodeConfig("THIS", thisNodeConf); //printCurrentLoRaConfig();
-    performTransmission(msgCount, tx_begin_ms, RND_MESSAGE);
+    // Enviar el siguiente mensaje de la cola
+    performTransmission(msgCount, tx_begin_ms); 
   } 
   
   if (transmissionCompleted()) 
@@ -85,11 +85,9 @@ inline bool shouldTransmit(uint32_t currentTime, uint32_t lastSendTime, uint32_t
   return !transmitting && ((currentTime - lastSendTime) > txInterval);
 }
 
-
 inline bool transmissionCompleted() {
   return transmitting && txDoneFlag;
 }
-
 
 inline bool is_RSSI_InRange(int rssi) { // TODO: Cambiar RSSI a float
   return (rssi > MIN_RSSI) && (rssi < MAX_RSSI);
@@ -107,34 +105,20 @@ void sendHomeDataToServer(){
     Serial.println(serializedData);       
 }
 
-void performTransmission(uint16_t& msgCount, uint32_t& txBegin, byte messageType) {
-    switch (messageType) {
-          case ACK_MESSAGE: {// ACK        
-            Message ACK(random(0, 20000), CREATE_ACK);
-            Serial.println("This is master Node, should not send ACK messages!");
-            break;
-        } case NACK_MESSAGE: { // NACK
-            Message NACK(random(0, 20000), CREATE_NACK);
-            Serial.println("This is master Node, should not send NACK messages!");
-            break;
-        } case CFG_MESSAGE: { // CFG (Configuración)        
-            Message configMessage(msgCount, remoteNodeConf);
-           
-            break;
-        } case RND_MESSAGE: { // OTHER (Mensaje aleatorio)
-            Message randomMessage(msgCount, (uint8_t)3);
-            //Serial.println("This is master Node, should not send RND messages!");          
-            break;
-        } default:
-            Serial.println("ERROR => Empty Message Queue.");
-            return;
-            break;
-    }
+void performTransmission(uint16_t& msgCount, uint32_t& txBegin) {
+  // La cola de mensajes está vacía, no envia nada.
+  if (messageQueue.isEmpty()) return;
+
+  Serial.print("Starting transmission with ");
+  printNodeConfig("THIS", thisNodeConf); //printCurrentLoRaConfig();
 
   transmitting = true;
   txDoneFlag = false;
-  txBegin = millis();               // Update the last send time to the current time
-  
+  txBegin = millis();               // Update the last send time to the current time      
+
+  // Verificar si la cola de mensajes no está vacía
+  Message nextMessage = messageQueue.dequeue(); // Desencolar el siguiente mensaje
+  nextMessage.send();
   Serial.print("Sending packet " + String(msgCount++) + ": ");
 }
 
@@ -178,8 +162,7 @@ void onReceive(int packetSize) {
     if (transmitting && !txDoneFlag) txDoneFlag = true;
     if (packetSize == 0) return;
 
-    // Si se ha recibido un mensaje de confirmación se registra
-    
+    // Si se ha recibido un mensaje de confirmación se registra    
     Message receivedMessage = Message();
     if (receivedMessage.read()){
       // En caso de recibir correctamente el mensaje, se imprime y se procesa
@@ -205,8 +188,15 @@ void processReceivedMessage(Message& message) {
                 myHome.setTemperature((float)extractTemperatureFromPayload(messagePayload[0]));
                 myHome.setHumidity((int) messagePayload[1]);
                 myHome.setGasDetection((int) messagePayload[2]);
-                myHome.setFlameDetection((int) messagePayload[3]);                
+                myHome.setFlameDetection((int) messagePayload[3]);  
+
+                // Encolamos un mensaje de ACK para HOME
+                Message ACK_HOME(random(0, 20000), CREATE_ACK, HOME_ADDRESS);
+                messageQueue.enqueue(ACK_HOME);
             } else {
+                // Encolamos un mensaje de NACK para HOME
+                Message NACK_HOME(random(0, 20000), CREATE_NACK, HOME_ADDRESS);
+                messageQueue.enqueue(NACK_HOME);
                 Serial.println("[HOME] Longitud del payload incorrecta.");
             }            
             break;
@@ -215,7 +205,16 @@ void processReceivedMessage(Message& message) {
             if (messagePayloadLength == 1){                
               myHome.setGardenLightStatus(static_cast<bool>(messagePayload[0] & 0x01)); // Extraer el valor de 'light' de los bits menos significativos (LSB)
               myHome.setGardenSoilHumidity(static_cast<int>(messagePayload[0] >> 1)); // Extraer el valor de 'groundHumidity' de los bits restantes
-            }
+              
+              // Encolamos un mensaje de ACK para GARDEN
+              Message ACK_GARDEN(random(0, 20000), CREATE_ACK, GARDEN_ADDRESS);
+              messageQueue.enqueue(ACK_GARDEN);
+            } else {
+                // Encolamos un mensaje de NACK para HOME
+                Message NACK_GARDEN(random(0, 20000), CREATE_NACK, GARDEN_ADDRESS);
+                messageQueue.enqueue(NACK_GARDEN);
+                Serial.println("[GARDEN] Longitud del payload incorrecta.");
+            }   
             break;
         case PARKING_ADDRESS: { // Mensaje del MKR del parkign 
             message.print("[PARKING] RECEIVED");  
@@ -236,6 +235,14 @@ void processReceivedMessage(Message& message) {
               myHome.setParkingLightStatus(motion);
               myHome.setParkingAccessStatus(door_state);
 
+              // Encolamos un mensaje de ACK para GARDEN
+              Message ACK_PARKING(random(0, 20000), CREATE_ACK, PARKING_ADDRESS);
+              messageQueue.enqueue(ACK_PARKING);
+
+            } else {
+                Message NACK_PARKING(random(0, 20000), CREATE_NACK, PARKING_ADDRESS);
+                messageQueue.enqueue(NACK_PARKING);
+                Serial.println("[PARKING] Longitud del payload incorrecta.");
             }
 
             break;        

@@ -78,8 +78,7 @@ void deactivateBuzzer(){
 
 
 // Función para establecer el color del LED basado en la temperatura
-void setLEDColor(float temperature) {
-  Serial.println("Temperature" + String(temperature));
+void setLEDColor(float temperature) {  
   if (temperature < 20) {
     analogWrite(BLUE_PIN, 255);  // Blue
     analogWrite(GREEN_PIN, 0);   // Green

@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------
- *  Práctica 3: Ejercicio propuesto (ESCLAVO)
+ *  Práctica 4: Ejercicio propuesto (ESCLAVO)
  *  Asignatura (GII-IoT)
 
  *  Autor: Antonio Aparicio González
@@ -59,10 +59,8 @@ void loop() {
   checkDoorCode();
 
 
-  if (shouldTransmit(currentTime, lastSendTime_ms, txInterval_ms)){
-    Serial.print("Starting transmission with ");
-    printNodeConfig("THIS", thisNodeConf); //printCurrentLoRaConfig();
-    performTransmission(msgCount, tx_begin_ms, RND_MESSAGE);
+  if (shouldTransmit(currentTime, lastSendTime_ms, txInterval_ms)){    
+    performTransmission(msgCount, tx_begin_ms);
   } 
   
   if (transmissionCompleted()) 
@@ -79,7 +77,6 @@ inline bool transmissionCompleted() {
   return transmitting && txDoneFlag;
 }
 
-
 inline bool is_RSSI_InRange(int rssi) { // TODO: Cambiar RSSI a float
   return (rssi > MIN_RSSI) && (rssi < MAX_RSSI);
 }
@@ -88,43 +85,28 @@ inline bool is_SNR_InRange(float snr) {
   return (snr > MIN_SNR) && (snr < MAX_SNR);
 }
 
-void performTransmission(uint16_t& msgCount, uint32_t& txBegin, byte messageType) {
-    switch (messageType) {
-          case ACK_MESSAGE: {// ACK        
-            Message ACK(random(0, 20000), CREATE_ACK);
-            Serial.println("This is master Node, should not send ACK messages!");
-            break;
-        } case NACK_MESSAGE: { // NACK
-            Message NACK(random(0, 20000), CREATE_NACK);
-            Serial.println("This is master Node, should not send NACK messages!");
-            break;
-        } case CFG_MESSAGE: { // CFG (Configuración)        
-            Message configMessage(msgCount, remoteNodeConf);
-            break;
-        } case RND_MESSAGE: { // OTHER (Mensaje aleatorio)
+void performTransmission(uint16_t& msgCount, uint32_t& txBegin) { 
+    
+  uint8_t motion = readMotionSensor();
+  uint8_t car_inside = checkCarInside();
+  uint8_t door_state = getDoorState();
+  Serial.println("Motion: " + String(motion) + ", CarInside: " + String(car_inside) + ", DoorState: " + String(door_state));
+  uint8_t customPayload[] = {static_cast<uint8_t>((motion << 2) | car_inside << 1 | door_state)};
 
-            uint8_t motion = readMotionSensor();
-            uint8_t car_inside = checkCarInside();
-            uint8_t door_state = getDoorState();
-            Serial.println("Motion: " + String(motion) + ", CarInside: " + String(car_inside) + ", DoorState: " + String(door_state));
-            uint8_t customPayload[] = {static_cast<uint8_t>((motion << 2) | car_inside << 1 | door_state)};
 
-            Message dataMessage(msgCount, customPayload, 1, destination);
-            dataMessage.print("[RND] SENT");
-            dataMessage.send();
-            
-            break;
-        } default:
-            Serial.println("ERROR => Empty Message Queue.");
-            return;
-            break;
-    }
-
+  Serial.print("Starting transmission with ");
+  printNodeConfig("THIS", thisNodeConf); 
+  
+  Message dataMessage(msgCount, customPayload, 1, destination);
+  dataMessage.print("[RND] SENT");
+  dataMessage.send();              
+  
   transmitting = true;
   txDoneFlag = false;
   txBegin = millis();               // Update the last send time to the current time
   
   Serial.print("Sending packet " + String(msgCount++) + ": ");
+
 }
 
 uint32_t processTransmissionCompletion(uint32_t& txInterval, uint32_t& lastSendTime, uint32_t& txBegin) {
@@ -167,8 +149,7 @@ void onReceive(int packetSize) {
     if (transmitting && !txDoneFlag) txDoneFlag = true;
     if (packetSize == 0) return;
 
-    // Si se ha recibido un mensaje de confirmación se registra
-    
+    // Si se ha recibido un mensaje de confirmación se registra    
     Message receivedMessage = Message();
     if (receivedMessage.read()){
       // En caso de recibir correctamente el mensaje, se imprime y se procesa
@@ -204,23 +185,6 @@ void processReceivedMessage(Message& message) {
     }    
 }
 
-void extractRSSIandSNRfromPayLoad(const uint8_t* payload, int& remoteRSSI, float& remoteSNR) {
-    // Extracción del RSSI
-    remoteRSSI = -int(payload[1]) / 2.0f; // Dividir entre -2 para revertir la operación original empaquetado
-    // Extracción del SNR
-    remoteSNR = int(payload[2]) - 148; // Restar 148 para revertir la operación original de empaquetado
-}
 
-bool updateThisNodeConfiguration(LoRaConfig_t& config) {
-  // Aplica la nueva configuración recibida por el maestro
-  applyLoRaConfiguration(config);
-  thisNodeConf = config;
-
-  // Muestra la nueva configuración aplicada
-  Serial.println("············ New LoRa configuration set ············");
-  printNodeConfig("NEW", thisNodeConf);
-  Serial.println("····················································");
-  return true;
-}
 
 
