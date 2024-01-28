@@ -10,7 +10,6 @@
 #define RND_MESSAGE     byte(3)   // 0b11 para OTHER
 
 
-
 // =============================== VALORES FIJOS ===============================
 
 // Received Signal Strength Indicator [0, -127] (dBm): Medida de la potencia que tiene la señal recibida. 

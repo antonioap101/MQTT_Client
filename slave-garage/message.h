@@ -2,7 +2,7 @@
 #define MESSAGE_H
 
 #include <Arduino.h>
-#include "LoRa-config.h" // Asegúrate de incluir todas las dependencias necesarias
+#include "LoRa-config.h" 
 
 #define CREATE_ACK true
 #define CREATE_NACK false

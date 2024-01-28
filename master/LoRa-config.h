@@ -10,7 +10,6 @@
 #define RND_MESSAGE     byte(3)   // 0b11 para OTHER
 
 
-
 // =============================== VALORES FIJOS ===============================
 
 // Received Signal Strength Indicator [0, -127] (dBm): Medida de la potencia que tiene la señal recibida. 
@@ -95,5 +94,6 @@ bool isMessageForThisNode(int recipient);
 void processReceivedMessage(uint8_t sender, int recipient, uint16_t incomingMsgId, uint8_t incomingLength, const uint8_t* buffer, uint8_t receivedBytes);
 void updateRemoteNodeConfiguration(const uint8_t* buffer);
 void printNodeConfig(String whichNode, const LoRaConfig_t& config);
+String messageTypeToString(int messageType);
 
 #endif

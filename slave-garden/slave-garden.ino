@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------
- *  Práctica 3: Ejercicio propuesto (ESCLAVO)
+ *  Práctica 4: SmartHomeHub (ESCLAVO)
  *  Asignatura (GII-IoT)
 
  *  Autor: Antonio Aparicio González
@@ -23,12 +23,7 @@
 
 
 #define TX_LAPSE_MS          uint32_t(5000)
-#define HOSTNAME             "#esclavo@ArduinoMKR1310: "
-#define ADJUSTMENT_INTERVAL  uint32_t(10000)                     // Intervalo mínimo entre ajustes de la configuracion de LoRa (en milisegundos)
-#define RESET_MULTIPLIER     uint8_t(3)                          // Multiplicador de tiempo para RESET_INTERVAL
-#define SEND_CONFIG_MSG      true
-#define SEND_RANDOM_MSG      false
-
+#define HOSTNAME             "#slave-garden@SmartHomeHub: "
 
 
 void setup() { 
@@ -38,8 +33,6 @@ void setup() {
   configureLoRa();                               // Configuración extra de LoRa
   setupLoRaCallbacks();                          // Configura las funciones de callback LoRa
   startLoRaReception();                          // Activa la recepción de mensajes de Lora
-  // setupPIRSensor();  
-  //setupHomeSensors();
   setupGardenSensors();
   printNodeConfig("INITIAL THIS", thisNodeConf); // Muestra la configuración inicial del Nodo
   Serial.println();
@@ -52,10 +45,7 @@ void loop() {
   static uint32_t txInterval_ms = TX_LAPSE_MS;        // Intervalo de tiempo para enviar mensajes 
   static uint32_t tx_begin_ms = 0;                    // Instante de tiempo en que comienza la transmisión actual
   static uint32_t TxTime_ms;                          // Tiempo que tardó en completarse la transmisión actual (tiempo que se pretende minimizar)
-  static uint32_t lastAdjustmentTime = 0;                 // Tiempo del último ajuste realizado
   uint32_t currentTime = millis();                    // Tiempo actual
-  uint32_t RESET_INTERVAL = txInterval_ms * RESET_MULTIPLIER;    // Calcular RESET_INTERVAL en tiempo de ejecución
-
   
   if (shouldTransmit(currentTime, lastSendTime_ms, txInterval_ms)){
     Serial.print("Starting transmission with ");
@@ -87,37 +77,17 @@ inline bool is_SNR_InRange(float snr) {
 }
 
 void performTransmission(uint16_t& msgCount, uint32_t& txBegin, byte messageType) {
-    switch (messageType) {
-          case ACK_MESSAGE: {// ACK        
-            Message ACK(random(0, 20000), CREATE_ACK);
-            Serial.println("This is master Node, should not send ACK messages!");
-            break;
-        } case NACK_MESSAGE: { // NACK
-            Message NACK(random(0, 20000), CREATE_NACK);
-            Serial.println("This is master Node, should not send NACK messages!");
-            break;
-        } case CFG_MESSAGE: { // CFG (Configuración)        
-            Message configMessage(msgCount, remoteNodeConf);
-            configMessage.print("[CFG] SENT");
-            configMessage.send();
-            break;
-        } case RND_MESSAGE: { // OTHER (Mensaje aleatorio)
-            uint8_t light = readLightStatus();            
-            uint8_t ground = 100; //  readGroundHumidity()
-            Serial.println("Light: " + String(light));
-            // Combinar 'light' y 'groundHumidity' y asignarlo a customPayload[0]            
-            uint8_t customPayload[] = {static_cast<uint8_t>((ground << 1) | light)};
-            Serial.println("CUSTOMPAYLOAD: " + String(customPayload[0]));
-            Message dataMessage(msgCount, customPayload, 1, destination);
-            dataMessage.print("[RND] SENT");
-            dataMessage.send();           
+  uint8_t light = readLightStatus();            
+  uint8_t ground = readGroundHumidity();  
+  Serial.println("Light: " + String(light) + ", Ground: " + String(ground));
+
+  // Combinar 'light' y 'groundHumidity' y asignarlo a customPayload[0]            
+  uint8_t customPayload[] = {static_cast<uint8_t>((ground << 1) | light)};
+
+  Message dataMessage(msgCount, customPayload, 1, destination);
+  dataMessage.print("[RND] SENT");
+  dataMessage.send();           
             
-            break;
-        } default:
-            Serial.println("ERROR => Empty Message Queue.");
-            return;
-            break;
-    }
 
   transmitting = true;
   txDoneFlag = false;
@@ -203,24 +173,6 @@ void processReceivedMessage(Message& message) {
     }    
 }
 
-void extractRSSIandSNRfromPayLoad(const uint8_t* payload, int& remoteRSSI, float& remoteSNR) {
-    // Extracción del RSSI
-    remoteRSSI = -int(payload[1]) / 2.0f; // Dividir entre -2 para revertir la operación original empaquetado
-    // Extracción del SNR
-    remoteSNR = int(payload[2]) - 148; // Restar 148 para revertir la operación original de empaquetado
-}
-
-bool updateThisNodeConfiguration(LoRaConfig_t& config) {
-  // Aplica la nueva configuración recibida por el maestro
-  applyLoRaConfiguration(config);
-  thisNodeConf = config;
-
-  // Muestra la nueva configuración aplicada
-  Serial.println("············ New LoRa configuration set ············");
-  printNodeConfig("NEW", thisNodeConf);
-  Serial.println("····················································");
-  return true;
-}
 
 
 

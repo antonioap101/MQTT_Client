@@ -38,9 +38,7 @@ Message::Message(uint16_t messageId, bool isAck, uint8_t destination) {
 uint8_t Message::prepareACKPayload(){
     // Incluimos el RSSI y el SNR del último paquete recibido
     this->payload[0] = ACK_MESSAGE; 
-    this->payload[1] = uint8_t(-LoRa.packetRssi() * 2); // RSSI puede estar en un rango de [0, -127] dBm
-    this->payload[2] = uint8_t(148 + LoRa.packetSnr()); // SNR puede estar en un rango de [20, -148] dBm
-    return 3;
+    return 1;
 }
 
 uint8_t Message::prepareNACKPayload(){
@@ -87,12 +85,14 @@ bool Message::read(){
   }
   buffer[receivedBytes] = '\0';         // Terminamos la cadena
 
+  if (!isMessageForThisNode(incomingRecipient)) return false;
+  
   // Comprobamos que el mensaje se haya recibido adecuadamente y que sea para este nodo
   if (!validateMessageLength(incomingLength, receivedBytes)) {
     printConflictiveMessage(incomingSender, incomingRecipient, incomingMsgId, incomingLength, buffer);
     return false;
   }
-  if (!isMessageForThisNode(incomingRecipient)) return false;
+  
 
   // Asignamos los valores a la instancia actual (this)
   this->recipient = incomingRecipient;

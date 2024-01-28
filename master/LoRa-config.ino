@@ -84,6 +84,20 @@ void printNodeConfig(String whichNode, const LoRaConfig_t& config){
     Serial.println(" dBm }");
 }
 
+String messageTypeToString(int messageType) {
+    switch (messageType) {
+        case ACK_MESSAGE:
+            return "ACK";
+        case NACK_MESSAGE:
+            return "NACK";
+        case CFG_MESSAGE:
+            return "CFG";
+        case RND_MESSAGE:
+            return "RND";
+        default:
+            return "UNKNOWN";
+    }
+}
 
 // =========================================== DEBUGGING FUNCTIONS ===========================================
 /* Para poder usar hay que modificar la libreria LoRa y poner públicos los métodos que se utilizan

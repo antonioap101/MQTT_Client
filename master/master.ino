@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------
- *  Práctica 4: Ejercicio propuesto (MAESTRO)
+ *  Práctica 4: SmartHomeHub (MAESTRO)
  *  Asignatura (GII-IoT)
  * 
  *  Autor: Antonio Aparicio González
@@ -25,11 +25,7 @@
 
 #define TX_LAPSE_MS          uint32_t(5000)
 #define SERVER_SEND_INTERVAL uint32_t(1000);                       // Intervalo de envio al server deseado en milisegundos (medio segundo)
-#define HOSTNAME             "#master@ArduinoMKR1310: "
-#define ADJUSTMENT_INTERVAL  uint32_t(10000)                     // Intervalo mínimo entre ajustes de la configuracion de LoRa (en milisegundos)
-#define RESET_MULTIPLIER     uint8_t(3)                          // Multiplicador de tiempo para RESET_INTERVAL
-#define SEND_CONFIG_MSG      true
-#define SEND_RANDOM_MSG      false
+#define HOSTNAME             "#master@SmartHomeHub: "
 
 
 void setup() { 
@@ -45,17 +41,16 @@ void setup() {
 
 
 void loop() {
-  static uint32_t lastServerSendTime_ms = 0;                      // Tiempo de la última ejecución de sendHomeDataToServer()  
+
   const uint32_t serverSendInterval = SERVER_SEND_INTERVAL;       // Intervalo de ejecución deseado en milisegundos (medio segundo)
+  static uint32_t lastServerSendTime_ms = 0;                      // Tiempo de la última ejecución de sendHomeDataToServer()  
 
   static uint32_t lastSendTime_ms = 0;                            // Instante de tiempo en que se comenzó la transmisión previa a la actual
   static uint16_t msgCount = 0;                                   // Conteo de mensajes enviados
   static uint32_t txInterval_ms = TX_LAPSE_MS;                    // Intervalo de tiempo para enviar mensajes 
   static uint32_t tx_begin_ms = 0;                                // Instante de tiempo en que comienza la transmisión actual
   static uint32_t TxTime_ms;                                      // Tiempo que tardó en completarse la transmisión actual (tiempo que se pretende minimizar)
-  static uint32_t lastAdjustmentTime = 0;                         // Tiempo del último ajuste realizado
   uint32_t currentTime = millis();                                // Tiempo actual
-  uint32_t RESET_INTERVAL = txInterval_ms * RESET_MULTIPLIER;     // Calcular RESET_INTERVAL en tiempo de ejecución
 
     // Verificar si ha pasado el intervalo deseado desde la última ejecución
   if (shouldSendDataToServer(currentTime, lastServerSendTime_ms, serverSendInterval)) {
@@ -66,7 +61,7 @@ void loop() {
     lastServerSendTime_ms = currentTime;
   }
 
-  /*
+  
   if (shouldTransmit(currentTime, lastSendTime_ms, txInterval_ms)){
     // Enviar el siguiente mensaje de la cola
     performTransmission(msgCount, tx_begin_ms); 
@@ -74,7 +69,7 @@ void loop() {
   
   if (transmissionCompleted()) 
     TxTime_ms = processTransmissionCompletion(txInterval_ms, lastSendTime_ms, tx_begin_ms);
-  */
+  
 }
 
 inline bool shouldSendDataToServer(uint32_t currentTime, uint32_t lastSendTime, uint32_t serverSendInterval ){
@@ -118,6 +113,7 @@ void performTransmission(uint16_t& msgCount, uint32_t& txBegin) {
 
   // Verificar si la cola de mensajes no está vacía
   Message nextMessage = messageQueue.dequeue(); // Desencolar el siguiente mensaje
+  nextMessage.print("[" + messageTypeToString(nextMessage.getMessageType()) + "] SENT");
   nextMessage.send();
   Serial.print("Sending packet " + String(msgCount++) + ": ");
 }

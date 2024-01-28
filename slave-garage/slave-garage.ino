@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------
- *  Práctica 4: Ejercicio propuesto (ESCLAVO)
+ *  Práctica 4: SmartHomeHub (ESCLAVO)
  *  Asignatura (GII-IoT)
 
  *  Autor: Antonio Aparicio González
@@ -24,11 +24,7 @@
 
 
 #define TX_LAPSE_MS          uint32_t(5000)
-#define HOSTNAME             "#esclavo@ArduinoMKR1310: "
-#define ADJUSTMENT_INTERVAL  uint32_t(10000)                     // Intervalo mínimo entre ajustes de la configuracion de LoRa (en milisegundos)
-#define RESET_MULTIPLIER     uint8_t(3)                          // Multiplicador de tiempo para RESET_INTERVAL
-#define SEND_CONFIG_MSG      true
-#define SEND_RANDOM_MSG      false
+#define HOSTNAME             "#slave-garage@SmartHomeHub: "
 
 
 
@@ -52,10 +48,8 @@ void loop() {
   static uint32_t txInterval_ms = TX_LAPSE_MS;        // Intervalo de tiempo para enviar mensajes 
   static uint32_t tx_begin_ms = 0;                    // Instante de tiempo en que comienza la transmisión actual
   static uint32_t TxTime_ms;                          // Tiempo que tardó en completarse la transmisión actual (tiempo que se pretende minimizar)
-  static uint32_t lastAdjustmentTime = 0;                 // Tiempo del último ajuste realizado
   uint32_t currentTime = millis();                    // Tiempo actual
-  uint32_t RESET_INTERVAL = txInterval_ms * RESET_MULTIPLIER;    // Calcular RESET_INTERVAL en tiempo de ejecución
-
+  
   checkDoorCode();
 
 
